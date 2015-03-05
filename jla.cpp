@@ -29,7 +29,7 @@ struct rational
 
 	rational(Num num) : rational(num, 1) {};
 	rational() : rational(0, 1) {};
-	
+
 	rational operator*(const rational& rhs) const
 	{
 		return rational(numerator * rhs.numerator, denominator * rhs.denominator);
@@ -143,7 +143,7 @@ struct matrix {
 
 	matrix& operator=(matrix other)
 	{
-		swap(*this, other); 
+		swap(*this, other);
 		return *this;
 	}
 
@@ -183,7 +183,7 @@ struct matrix {
 				if (element(h, w) != rhs.element(h, w)) return false;
 			}
 		}
-		
+
 		return true;
 	}
 
@@ -219,7 +219,7 @@ struct matrix {
 				}
 			}
 		}
-		
+
 		return result;
 	}
 
@@ -276,7 +276,7 @@ struct matrix {
 		return result;
 	}
 
-	static matrix identity(size_t h_dim, size_t w_dim) 
+	static matrix identity(size_t h_dim, size_t w_dim)
 	{
 		matrix result(h_dim, w_dim);
 		for (size_t h = 0; h < result.height; h++)
@@ -353,7 +353,7 @@ struct matrix {
 				L.element(i, j) = alpha;
 			}
 		}
-		
+
 		return L;
 	}
 
@@ -384,7 +384,63 @@ struct matrix {
 
 		return make_pair(L, U);
 	}
-	
+
+	Num norm2() const
+	{
+		Num result = 0;
+		for (size_t h = 0; h < height; h++)
+		{
+			for (size_t w = 0; w < width; w++)
+			{
+				result += element(h, w) * element(h, w);
+			}
+		}
+		return result;
+	}
+
+	matrix proj(const matrix& direction) const
+	{
+		auto dir_trans = direction.transpose();
+		return (dir_trans * (*this)).element(0, 0) * (dir_trans * (*this)).element(0, 0)
+	}
+
+	// Performs a QR decomposition using Gram-Schmidt orthonormalization. Does not use modified GSP, so
+	// numerical stability is poor.
+
+	pair<matrix, matrix> qr() const {
+		matrix Q(*this);
+		for (size_t k = 0; k < width; ++k)
+		{
+			// Orthogonalize
+			for (size_t j = 0; j < k; ++j)
+			{
+				Num factor = 0;
+				for (size_t i = 0; i < height; ++i)
+				{
+					factor += Q.element(i, j) * element(i, k);
+				}
+				for (size_t i = 0; i < height; ++i)
+				{
+					Q.element(i, k) -= factor * Q.element(i, j);
+				}
+			}
+
+			// Normalize
+			Num norm = sqrt(Q.column(k).norm2());
+			for (size_t i = 0; i < height; ++i)
+			{
+				Q.element(i, k) /= norm;
+			}
+		}
+
+		// since A = QR, R = Q^T A (Q is orthogonal)
+		matrix R(Q.transpose());
+		R *= *this;
+
+		return make_pair(Q, R);
+	}
+
+
 	// Performs a forward-substitution on given column vectors (input as a matrix) 
 	// (assumes that *this is a lower-triangular matrix)
 
@@ -392,7 +448,7 @@ struct matrix {
 	{
 		check_square();
 		if (vec.height != height) throw nullptr;
-		
+
 		matrix result(vec.height, vec.width);
 
 		for (size_t i = 0; i < height; ++i)
@@ -421,7 +477,7 @@ struct matrix {
 
 		matrix result(vec.height, vec.width);
 
-		for (size_t i = height - 1; ; --i)
+		for (size_t i = height - 1;; --i)
 		{
 			for (size_t n = 0; n < vec.width; ++n)
 			{
@@ -483,7 +539,7 @@ private:
 	{
 		if ((height != other.height) || (width != other.width)) throw runtime_error("Mismatching dimensions.");
 	}
-	
+
 	inline void check_dimensions_multi(const matrix& lhs) const
 	{
 		if (width != lhs.height) throw runtime_error("Mismatching dimensions.");
@@ -492,54 +548,40 @@ private:
 
 template<typename Num>
 ostream& operator<<(ostream & stream, const matrix<Num>& in){
-	
+
 	for (size_t h = 0; h < in.height; h++)
 	{
 		stream << "[";
 		for (size_t w = 0; w < in.width; w++)
 		{
-			if (w != 0) 
-				stream << " "; 
-			stream << in.element(h, w);			
+			if (w != 0)
+				stream << " ";
+			if (abs(in.element(h, w)) < 1e-10)
+				stream << 0;
+			else
+				stream << in.element(h, w);
 		}
 		stream << "]";
 		if (h != in.height - 1)
 			stream << "\n";
 	}
-		
+
 	return stream;
 }
 
 int main()
 {
-	using Patrix = matrix<rational<long long>>;
-	auto a = Patrix::identity(5, 5);
-	for (size_t i = 0; i < 5; ++i)
+	using Patrix = matrix<double>;
+	auto a = Patrix::identity(500, 500);
+	for (size_t i = 0; i < 500; ++i)
 	{
-		for (size_t j = 0; j < 5; ++j)
+		for (size_t j = 0; j < 500; ++j)
 		{
-			a.element(i, j) = 1000 * (rand() % 5 - 2);
+			a.element(i, j) = (rand() % 5 - 2);
 		}
 	}
+	//cout << a << endl << endl;
+	auto QR = a.qr();
 
-
-	cout << a << endl << endl;
-	auto LU = a.lu();
-
-	
-
-	cout << LU.first << endl << endl << LU.second << endl << endl;
-	cout << "Prvi inverz: " << endl;
-	
-	auto Y = LU.first.lower_solve(Patrix::identity(5, 5));
-	cout << Y << endl << endl;
-
-	auto inverz = LU.second.upper_solve(Y);
-
-	
-	cout << "Inverz: " << endl;
-	cout << inverz << endl << endl;
-
-	cout << "A je res: " << endl;
-	cout << inverz * a << endl << endl;
+	//cout << QR.first << endl << endl << QR.second;
 }
