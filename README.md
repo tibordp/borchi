@@ -1,2 +1,3 @@
-# jla
-Jejune Linear Algebra
+# borchi
+
+A toy linear algebra library.

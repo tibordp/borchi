@@ -4,6 +4,9 @@
 *.o
 *.obj
 
+# Junk
+*.stackdump
+
 # Precompiled Headers
 *.gch
 *.pch
